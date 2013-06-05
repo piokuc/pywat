@@ -40,7 +40,7 @@ class Cons(object):
         else: op = evaluate(e, None, None, car(self))    
         if isCapture(op):
             other = self
-            captureFrame(op, lambda k,f: that.wat_eval(e, k, f))
+            captureFrame(op, lambda k,f: other.wat_eval(e, k, f))
             return op
         return combine(e, None, None, op, cdr(self))    
     def wat_match(self, e, rhs):
@@ -72,7 +72,7 @@ class Apv(object):
         else: args = evalArgs(e, None, None, o, NIL)
         if isCapture(args):
             other = self    
-            captureFrame(args, lambda k,f: that.wat_combine(e, k, f, o))
+            captureFrame(args, lambda k,f: other.wat_combine(e, k, f, o))
             return args
         return self.cmb.wat_combine(e, None, None, args);
     def __str__(self): return '(Apv ' + str(self.cmb) + ')'
