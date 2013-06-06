@@ -1,5 +1,9 @@
 import json
 
+def quote(o):
+    try: return '"' + o + '"'
+    except TypeError: return str(o) 
+
 class Continuation(object):
     def __init__(self, fun, next):
         self.fun = fun
@@ -29,7 +33,8 @@ class Sym(object):
         if e is None: fail("undefined argument: " + self.name)
         e.bindings[self.name] = rhs
         return e.bindings[self.name]
-    def __str__(self): return ":"+self.name
+    def __str__(self): return quote(self.name)
+    def __repr__(self): return self.__str__()
 
 class Cons(object):
     def __init__(self, car, cdr):
@@ -46,8 +51,16 @@ class Cons(object):
     def wat_match(self, e, rhs):
         car(self).wat_match(e, car(rhs))
         cdr(self).wat_match(e, cdr(rhs))        
-    def __str__(self): return str(self.car) + ', ' + str(self.cdr) 
-        
+    def __str__(self): return '[' + self._lst() + ']' 
+    def _lst(self):
+        car = str(self.car) 
+        if self.cdr is NIL:
+            return car
+        try: return car + ', ' + self.cdr._lst()
+        except AttributeError:
+            return car + ', ' + str(self.cdr)
+    def __repr__(self): return self.__str__()
+
 # Operative & Applicative Combiners
 def combine(e, k, f, cmb, o):
     if hasattr(cmb, 'wat_combine'): return cmb.wat_combine(e, k, f, o);
@@ -343,7 +356,15 @@ def py_invoke(obj, method_name, *args):
     return getattr(obj, method_name)(*args)
 def py_callback(cmb):
     return lambda *args: combine(make_env(), None, None, cmb, array_to_list(args))
+
+#TODO: we need to distinguish between setting an item and an attribute - this is not JavaScript
 def setElement(obj, i, v): obj[i] = v
+def getElement(obj, i):
+    try: return obj[i]
+    except AttributeError: 
+        try: return getattr(obj, str(i))
+        except AttributeError:
+            fail('Python object does not have attribute "' + str(i) + '"')
 
 # Primitives
 primitives = ["begin",
@@ -378,7 +399,7 @@ primitives = ["begin",
          ["def", "py-wrap", pywrap(pywrap)],
          ["def", "py-unop", pywrap(py_unop)],
          ["def", "py-binop", pywrap(py_binop)],
-         ["def", "py-element", pywrap(lambda obj, i: obj[i])],
+         ["def", "py-element", pywrap(getElement)],
          ["def", "py-set-element", pywrap(setElement)],
          ["def", "py-invoke", pywrap(py_invoke)],
          ["def", "py-callback", pywrap(py_callback)],
@@ -483,14 +504,25 @@ run(primitives)
 
 if __name__ == '__main__':
     # Tests
-    assert 1000 == run(['begin',
+    program = ['begin',
         ['def','x',10],
-        ['*', 'x', ['*','x','x']]])
+        ['*', 'x', ['*','x','x']]]
+    assert 1000 == run(program)
     assert 14 == run(['begin',
          ["def", "bar", ["lambda", ["x"], ["*", 'x', 2]]],
          ['bar', 7]])
+
+    # Call a Python method
     class Foo:
         def baaz(self, o): print o; self.txt = o
     foo = Foo()
     run(['#', 'baaz', foo, ['string', 'hello world! yabba dabba doo!']])
     assert foo.txt.startswith('hello')
+    assert run(['.', 'txt', foo]) .startswith('hello')
+
+    # Check AST converted to string is JSON (and Wat)
+    assert 1000 == run(list_to_array(parse_json_value(program)))
+
+    # TODO:
+    # Produce some HTML with embedded Wat (JS) 
+    # https://raw.github.com/manuel/wat-js/master/wat.js
