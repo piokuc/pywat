@@ -482,5 +482,15 @@ def run(x): return evaluate(environment, None, None, parse_json_value(x))
 run(primitives)
 
 if __name__ == '__main__':
-    # test
-    assert 1000 == run(['begin',['def','x',10],['*', 'x', ['*','x','x']]])
+    # Tests
+    assert 1000 == run(['begin',
+        ['def','x',10],
+        ['*', 'x', ['*','x','x']]])
+    assert 14 == run(['begin',
+         ["def", "bar", ["lambda", ["x"], ["*", 'x', 2]]],
+         ['bar', 7]])
+    class Foo:
+        def baaz(self, o): print o; self.txt = o
+    foo = Foo()
+    run(['#', 'baaz', foo, ['string', 'hello world! yabba dabba doo!']])
+    assert foo.txt.startswith('hello')
